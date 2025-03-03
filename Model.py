@@ -3,6 +3,9 @@ import socket
 import selectors
 from queue import Queue
 import time
+import random
+
+RUN_TIME = 1
 
 class SelectorData:
     def __init__(self):
@@ -26,47 +29,52 @@ def model(host : any, self_port : int, other_ports : list[int]):
 
     print(f"Model on {self_port} connecting to others")
 
-    other_keys = []
-
     for value in other_ports:
         connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         connection.connect((host, value))
         selector.register(connection, events, data = SelectorData())
 
-    try:
-        while True:
-            events = selector.select(timeout=None)
-            for key, mask in events:
-                # Add new connection from new User Processes
-                if key.data is None:
-                    connection, address = key.fileobj.accept()
-                    print(f"Model on {self_port} accepted connection from {address}")
-                    connection.setblocking(False)
-                    events = selectors.EVENT_READ | selectors.EVENT_WRITE
-                    selector.register(connection, events, data=SelectorData())
-                    other_keys.append(key)
-                else:
-                    cur_socket = key.fileobj
+    other_keys = []
 
-                    # Communications From Other to Current
-                    if mask & selectors.EVENT_READ:
-                        recieve = cur_socket.recv(1024)
-                        if recieve:
-                            key.data.inbound += recieve
-                        else:
-                            print(f"Process closing connection to {key.data.address}")
-                            selector.unregister(cur_socket)
-                            cur_socket.close()
+    start_time = time.perf_counter()
+    interval = 1/random.randint(1, 6)
+    next_time = start_time + interval
 
-                    # Communications From Current to Other
-                    if mask & selectors.EVENT_WRITE:
-                        pass
-    except Exception as e:
-        print(f"Model on {self_port} encountered error {e}")
-    finally:
-        print("Closing Model")
-        selector.close()
+    print(f"Model on {self_port} starts on {start_time:.3f} on interval {interval:.3f}")
+
+    while True:
+        if next_time - start_time > RUN_TIME:
+            break
+        events = selector.select(timeout=interval)
+        for key, mask in events:
+            # Add new connection from new User Processes
+            if key.data is None:
+                connection, address = key.fileobj.accept()
+                print(f"Model on {self_port} accepted connection from {address}")
+                connection.setblocking(False)
+                events = selectors.EVENT_READ | selectors.EVENT_WRITE
+                selector.register(connection, events, data=SelectorData())
+                other_keys.append(key)
+            else:
+                cur_socket = key.fileobj
+
+                # Communications From Other to Current
+                if mask & selectors.EVENT_READ:
+                    recieve = cur_socket.recv(1024)
+                    if recieve:
+                        key.data.inbound += recieve
+                    else:
+                        print(f"Process closing connection to {key.data.address}")
+                        selector.unregister(cur_socket)
+                        cur_socket.close()
+
+                # Communications From Current to Other
+                if mask & selectors.EVENT_WRITE:
+                    pass
+    
+    print(f"Closing Model on {self_port}")
+    selector.close()
 
 
 
