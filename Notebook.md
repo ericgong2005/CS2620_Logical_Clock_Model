@@ -18,6 +18,7 @@ Each process has its own selector and queue for incoming messages. When there is
 For each clock cycle (after checking that we are within a minute of system runtime), the process checks that enough time has passed for it to perform its operation and executes its operation according to the specification. If there are any outstanding messages on the queue, it reads the message and then sets its own logical clock time to the higher of its own clock time and the sender's clock time. Otherwise, it generates a random event according to the specified distribution. After performing the operation, the process increments its own logical clock, logs the cycle's information, and sets the time for its next cycle to take place.
 
 ## Testing
+Note: Due to the simplicity of the code we need to test, as well as for ease of structuring our Model and testing code, we decided to forego messily abstracting our model into a class, and instead just copy over the same lines of code to our testing. Beacuse of how simple our code is, one can quickly verify the code is identical if desired.
 
 ## Findings
 
