@@ -150,5 +150,3 @@ if __name__ == "__main__":
     other = [int(port) for port in sys.argv[3:]]
     host, self_port = sys.argv[1], int(sys.argv[2])
     model(host, self_port, other)
-
-
