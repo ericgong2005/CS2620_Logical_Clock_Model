@@ -39,6 +39,22 @@ class Transmit:
             rest = input[split_point + 1:]
             return first, rest
 
+def action(command : int, logical_clock : int, self_queue : Queue, self_queue_length : int, 
+           out_queue_1 : Queue, out_queue_2 : Queue, self_port : int):
+    if self_queue_length != 0:
+        command = -1
+        self_queue_length -= 1
+        current = Transmit.deserialize(self_queue.get())
+        logical_clock = max(logical_clock, int(current[1])) + 1
+    else:
+        message = Transmit.serialize([str(self_port), str(logical_clock), str(time.perf_counter())])
+        if command == 1 or command == 3:
+            out_queue_1.put(message)
+        if command == 2 or command == 3:
+            out_queue_2.put(message)
+        logical_clock += 1
+    return command, logical_clock, self_queue_length
+
 def model(host : any, self_port : int, other_ports : list[int]):
 
     self_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -82,19 +98,12 @@ def model(host : any, self_port : int, other_ports : list[int]):
         if time.perf_counter() - start_time > RUN_TIME:
             break
         elif time.perf_counter() > next_time:
-            command = -1
-            if queue_len != 0:
-                queue_len -= 1
-                current = Transmit.deserialize(inbound_queue.get())
-                logical_clock = max(logical_clock, int(current[1])) + 1
-            else:
-                command = random.randint(1, MAX_EVENT_NUM)
-                message = Transmit.serialize([str(self_port), str(logical_clock), str(time.perf_counter())])
-                if command == 1 or command == 3:
-                    other_keys[0].data.outbound.put(message)
-                if command == 2 or command == 3:
-                    other_keys[1].data.outbound.put(message)
-                logical_clock += 1
+            command, logical_clock, queue_len = action(random.randint(1, MAX_EVENT_NUM), logical_clock, 
+                             inbound_queue, queue_len, 
+                             other_keys[0].data.outbound, 
+                             other_keys[1].data.outbound, 
+                             self_port)
+            
             print(f"Process on {self_port} takes action {command} at {(time.perf_counter() - start_time):.5f}")
             with open(f"Model_Logs/Log_{self_port}.txt", "a") as file:
                 file.write(f"{command if command < 4 else 4}\t{logical_clock}\t" + 

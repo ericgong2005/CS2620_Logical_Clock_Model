@@ -7,37 +7,10 @@ import random
 import math
 from pathlib import Path
 
+from Model import SelectorData, Transmit, action
+
 SPEED_UP = 60
 RUN_TIME = 60
-
-class SelectorData:
-    def __init__(self):
-        self.inbound : bytes = b""
-        self.outbound : Queue[bytes] = Queue()
-
-class Transmit:
-    @staticmethod
-    def serialize(input: list[str]) -> bytes:
-        return ("\n" + " ".join(input) + "\n").encode("utf-8")
-    
-    def deserialize(input: bytes) -> list[str]:
-        return input.decode("utf-8").strip().split(" ")
-    
-    def get_one(input : bytes) -> tuple[bytes, bytes]:
-        if not input or input == b"":
-            return (b"",b"")
-        if input[0] != ord("\n"):
-            raise Exception("Invalid Initial Byte")
-        split_point = input.find(b"\n\n")
-        if split_point == -1:
-            if input[-1] == ord(b"\n"):
-                return (input, b"")
-            else:
-                return (b"", input)
-        else:
-            first = input[:split_point + 1]
-            rest = input[split_point + 1:]
-            return first, rest
 
 def model(host : any, self_port : int, other_ports : list[int], max_event_num, ticks, max_ticks):
 
@@ -85,19 +58,11 @@ def model(host : any, self_port : int, other_ports : list[int], max_event_num, t
         if time.perf_counter() - start_time > RUN_TIME/SPEED_UP:
             break
         elif time.perf_counter() > next_time:
-            command = -1
-            if queue_len != 0:
-                queue_len -= 1
-                current = Transmit.deserialize(inbound_queue.get())
-                logical_clock = max(logical_clock, int(current[1])) + 1
-            else:
-                command = random.randint(1, max_event_num)
-                message = Transmit.serialize([str(self_port), str(logical_clock), str(time.perf_counter())])
-                if command == 1 or command == 3:
-                    other_keys[0].data.outbound.put(message)
-                if command == 2 or command == 3:
-                    other_keys[1].data.outbound.put(message)
-                logical_clock += 1
+            command, logical_clock, queue_len = action(random.randint(1, max_event_num), logical_clock, 
+                             inbound_queue, queue_len, 
+                             other_keys[0].data.outbound, 
+                             other_keys[1].data.outbound, 
+                             self_port)
             print(f"Process on {self_port} takes action {command} at {((time.perf_counter() - start_time)*SPEED_UP):.5f}")
             with open((file_path / f"Log_{self_port}.txt"), "a") as file:
                 file.write(f"{command if command < 4 else 4}\t{logical_clock}\t" + 

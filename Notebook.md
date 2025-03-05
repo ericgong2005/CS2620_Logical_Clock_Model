@@ -5,6 +5,8 @@ Each of our processes runs as an instance of `Model.py`. The `Start.sh` shell co
 
 To test the variation in clock cycles and in the probability of internal events, we create a `Variation_Model.py` to be run with `Variation_start.sh`, and the results analyzed with `Variation_Analysis.py`. Specifically, this variant of model.py allows one to specify the maximum command number, which determines the probability of internal events (the larger the command number, the more likely an internal event), as well as the number of clock cycles per second. We choose to remove the randomness from clock-cycles per second to allow for a systematic comparison of how variation in clock cycles and in the probability of internal events affects metrics such as the maximum queue length, the maximum clock drift during the trial, and the clock drift at the end of the trial.
 
+Note that because `Variation_Model.py` is meant to be run numerous times, to expidite the data collection process, we add a speed multiplier that reduced interval time, but scales up the apparent true time, so that 60 seconds worth of data can be collected in a single second, without the numbers in the data being altered as a result of the speedup.
+
 ## Model Design
 
 ### Wire Protocol
@@ -20,7 +22,11 @@ Each process has its own selector and queue for incoming messages. When there is
 For each clock cycle (after checking that we are within a minute of system runtime), the process checks that enough time has passed for it to perform its operation and executes its operation according to the specification. If there are any outstanding messages on the queue, it reads the message and then sets its own logical clock time to the higher of its own clock time and the sender's clock time. Otherwise, it generates a random event according to the specified distribution. After performing the operation, the process increments its own logical clock, logs the cycle's information, and sets the time for its next cycle to take place.
 
 ## Testing
-Note: Due to the simplicity of the code we need to test, as well as for ease of structuring our Model and testing code, we decided to forego messily abstracting our model into a class, and instead just copy over the same lines of code to our testing. Beacuse of how simple our code is, one can quickly verify the code is identical if desired.
+We implement both unit testing and integration testing. The unit tests can be run via pytest.
+
+For unit testing, we test the action function, which is the function called once for every clock cycle. We utilize a variety of unit tests to ensure the action function correctly updates various queues and variables for each unique circumstance necessary (different command numbers, presence of incoming messages, etc.)
+
+For integration testing, we make use of the fact that each process will print out the action it takes at any given time. We can use this in combination with `Variation_start.sh` to control the number of clock cycles that occur per second. As a result, it becomes possible to manually confirm that the code acts correctly, by creating a diagram of what actions each process takes at a given timestamp, and the resulting implications at the next timestamp. Of course, this need not be done for the full 60 seconds worth of logs produced. In particular, using `Variation_start.sh 127.0.0.1 2621 2622 2623 1 2` will ensure that the fastest process runs 4 times for each cycle of the slow process, and the medium speed process runs twice. In addition, it is useful to note that in this case, the slowest process (2621) will recieve messages from the two faster processes, but only pass messages to 2622. Furthermore, 2622 and 2623 will not communicate with each other. Recall that setting the max command number to 1 means the only actions are reading or passing to the first of two other processes. This makes it easy to verify simple cases, before increasing the command number. Note that this particular integration test would be placed in `Variation_Logs/Trials/T4N1`. 
 
 ## Findings
 

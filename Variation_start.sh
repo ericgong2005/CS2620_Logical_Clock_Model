@@ -1,4 +1,4 @@
-# May need to run chmod +x start.sh
+# May need to run chmod +x Variation_start.sh
 
 # Exit immediately if a command fails
 set -e  
