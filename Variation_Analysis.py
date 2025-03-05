@@ -16,15 +16,26 @@ def main():
             for num in [2631, 2632, 2633]:
                 file_name = f"Log_{num}.txt"
                 file_path = os.path.join(folder_path, file_name)
-                df_list.append(pd.read_csv(file_path, sep="\t"))
+                df = pd.read_csv(file_path, sep="\t")
+                # Round for joining purposes
+                df["TRUE_TIME"] = df["TRUE_TIME"].round(2)
+                df_list.append(df)
             
             max_queue = max(df_list[0]['QUEUE_SIZE'].max(), df_list[1]['QUEUE_SIZE'].max(), df_list[2]['QUEUE_SIZE'].max())
-            end_logical = max(df_list[0]['LOGICAL_TIME'].iloc[-1], df_list[1]['LOGICAL_TIME'].iloc[-1], df_list[2]['LOGICAL_TIME'].iloc[-1])
-            max_logical = max((df_list[0]['LOGICAL_TIME'] - df_list[1]['LOGICAL_TIME']).abs().max(),
-                              (df_list[1]['LOGICAL_TIME'] - df_list[2]['LOGICAL_TIME']).abs().max(),
-                              (df_list[0]['LOGICAL_TIME'] - df_list[2]['LOGICAL_TIME']).abs().max())
             
-            data.loc[len(data)] = [j, i, max_queue, end_logical, max_logical]
+            max_logical = []
+            end_logical = []
+            merge = pd.merge(df_list[0], df_list[1], on='TRUE_TIME', how='inner', suffixes=('_df1', '_df2'))
+            max_logical.append((merge["LOGICAL_TIME_df1"] - merge["LOGICAL_TIME_df2"]).abs().max())
+            end_logical.append((merge["LOGICAL_TIME_df1"] - merge["LOGICAL_TIME_df2"]).abs().iloc[-1])
+            merge = pd.merge(df_list[0], df_list[2], on='TRUE_TIME', how='inner', suffixes=('_df1', '_df2'))
+            max_logical.append((merge["LOGICAL_TIME_df1"] - merge["LOGICAL_TIME_df2"]).abs().max())
+            end_logical.append((merge["LOGICAL_TIME_df1"] - merge["LOGICAL_TIME_df2"]).abs().iloc[-1])
+            merge = pd.merge(df_list[1], df_list[2], on='TRUE_TIME', how='inner', suffixes=('_df1', '_df2'))
+            max_logical.append((merge["LOGICAL_TIME_df1"] - merge["LOGICAL_TIME_df2"]).abs().max())
+            end_logical.append((merge["LOGICAL_TIME_df1"] - merge["LOGICAL_TIME_df2"]).abs().iloc[-1])
+            
+            data.loc[len(data)] = [j, i, max_queue, max(end_logical), max(max_logical)]
     
     fig1 = px.scatter_3d(
         data,
