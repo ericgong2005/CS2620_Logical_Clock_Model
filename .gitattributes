@@ -1,0 +1,2 @@
+# Exclude .html files
+*.html linguist-vendored
